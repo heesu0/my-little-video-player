@@ -1,18 +1,18 @@
 #include "log.h"
-#include <array>
-#include <stdexcept>
 extern "C" {
 #include "libavutil/avutil.h"
 }
+#include <array>
+#include <stdexcept>
 
 namespace {
 
 constexpr size_t ERROR_SIZE = 128;
 
 std::string getMessage(const int error_code) {
-  std::array<char, ERROR_SIZE> error_buffer;
+  std::array<char, ERROR_SIZE> error_buffer{};
   av_make_error_string(error_buffer.data(), ERROR_SIZE, error_code);
-  return std::string(error_buffer.data());
+  return {error_buffer.data()};
 }
 
 }// namespace
