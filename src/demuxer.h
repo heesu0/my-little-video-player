@@ -17,6 +17,7 @@ class Demuxer {
 
   int video_stream_index() const { return video_stream_index_; }
   int audio_stream_index() const { return audio_stream_index_; }
+  std::shared_ptr<AVFormatContext>& format_context() { return format_context_; }
 
  private:
   std::shared_ptr<AVFormatContext> format_context_;

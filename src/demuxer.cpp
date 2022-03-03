@@ -7,7 +7,7 @@ Demuxer::Demuxer(std::string filename)
     : filename_(std::move(filename)), video_stream_index_(-1),
       audio_stream_index_(-1) {}
 
-Demuxer::~Demuxer() {}
+Demuxer::~Demuxer() = default;
 
 void Demuxer::init() {
   AVFormatContext* format_context = nullptr;
@@ -17,8 +17,8 @@ void Demuxer::init() {
 
   format_context_ = std::shared_ptr<AVFormatContext>(
           format_context, [](AVFormatContext* format_context) {
-            std::cout << "AVFormat close input\n";
             avformat_close_input(&format_context);
+            std::cout << "AVFormat close input" << std::endl;
           });
   ret = avformat_find_stream_info(format_context_.get(), nullptr);
   if (ret < 0) LOG::Error(ret);
@@ -39,13 +39,11 @@ void Demuxer::init() {
 bool Demuxer::getPacket(std::shared_ptr<AVPacket>& packet) {
   AVPacket* av_packet = av_packet_alloc();
   if (av_read_frame(format_context_.get(), av_packet) >= 0) {
-    packet = std::shared_ptr<AVPacket>(av_packet, [](AVPacket* packet) {
-      av_packet_free(&packet);
-      std::cout << "AVPacket free\n";
-    });
+    packet = std::shared_ptr<AVPacket>(
+            av_packet, [](AVPacket* packet) { av_packet_free(&packet); });
     return true;
   } else {
-    std::cout << "End of frame\n";
+    std::cout << "End of frame" << std::endl;
     av_packet_free(&av_packet);
     return false;
   }

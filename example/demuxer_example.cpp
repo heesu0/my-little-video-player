@@ -5,10 +5,10 @@
 int main(int argc, char** argv) {
   try {
     if (argc != 2) {
-      throw std::logic_error{"Invalid arguments"};
+      throw std::logic_error("Invalid arguments");
     }
 
-    std::shared_ptr<Demuxer> demuxer = std::make_shared<Demuxer>(argv[1]);
+    std::unique_ptr<Demuxer> demuxer = std::make_unique<Demuxer>(argv[1]);
     demuxer->init();
     demuxer->printFileInfo();
 
