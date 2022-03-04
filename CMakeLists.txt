@@ -11,10 +11,12 @@ ADD_SUBDIRECTORY(lib/sdl2)
 ADD_EXECUTABLE(log_example example/log_example.cpp src/log.cpp)
 ADD_EXECUTABLE(demuxer_example example/demuxer_example.cpp src/demuxer.cpp src/log.cpp)
 ADD_EXECUTABLE(decoder_example example/decoder_example.cpp src/demuxer.cpp src/decoder.cpp src/log.cpp)
+ADD_EXECUTABLE(video_converter_example example/video_converter_example.cpp src/video_converter.cpp src/demuxer.cpp src/decoder.cpp src/log.cpp)
 
 TARGET_LINK_LIBRARIES(log_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(demuxer_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(decoder_example ffmpeg sdl2)
+TARGET_LINK_LIBRARIES(video_converter_example ffmpeg sdl2)
 
 #LIST(APPEND sources
 #  example/log_example.cpp
