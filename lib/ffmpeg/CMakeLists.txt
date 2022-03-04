@@ -20,4 +20,5 @@ TARGET_LINK_LIBRARIES(ffmpeg INTERFACE
   PkgConfig::AVDEVICE
   PkgConfig::AVUTIL
   PkgConfig::SWRESAMPLE
-  PkgConfig::SWSCALE)
+  PkgConfig::SWSCALE
+  )

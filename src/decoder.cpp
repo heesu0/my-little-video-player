@@ -1,6 +1,5 @@
 #include "decoder.h"
 #include "log.h"
-
 #include <iostream>
 
 Decoder::Decoder(int stream_index,

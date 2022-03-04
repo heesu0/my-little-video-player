@@ -18,6 +18,7 @@ class Decoder {
                 std::queue<std::shared_ptr<AVFrame>>& frame_queue);
 
   int stream_index() const { return stream_index_; }
+  std::shared_ptr<AVCodecContext>& codec_context() { return codec_context_; }
 
  private:
   int stream_index_;
