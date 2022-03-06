@@ -2,6 +2,7 @@
 extern "C" {
 #include <libavutil/avutil.h>
 }
+#include "sdl.h"
 #include <array>
 #include <stdexcept>
 
@@ -17,10 +18,16 @@ std::string getMessage(const int error_code) {
 
 }// namespace
 
-void LOG::Error(const std::string& message) {
-  throw std::runtime_error("LOG : " + message);
+void LOG::ERROR(const std::string& message) {
+  throw std::runtime_error("ERROR LOG : " + message);
 }
 
-void LOG::Error(int error_code) {
-  throw std::runtime_error("LOG : " + getMessage(error_code));
+void LOG::ERROR_FROM_FFMPEG(int error_code) {
+  std::string ffmpeg_error = getMessage(error_code);
+  throw std::runtime_error("ERROR LOG : " + ffmpeg_error);
+}
+
+void LOG::ERROR_FROM_SDL() {
+  std::string sdl_error = SDL_GetError();
+  throw std::runtime_error("ERROR LOG : " + sdl_error);
 }

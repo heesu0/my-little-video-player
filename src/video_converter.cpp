@@ -20,7 +20,7 @@ void VideoConverter::convertFrame(std::shared_ptr<AVFrame>& input_frame,
   AVFrame* frame = av_frame_alloc();
   int ret = av_image_alloc(frame->data, frame->linesize, codec_context_->width,
                            codec_context_->height, AV_PIX_FMT_YUV420P, 32);
-  if (ret < 0) LOG::Error(ret);
+  if (ret < 0) LOG::ERROR_FROM_FFMPEG(ret);
 
   frame->pts = input_frame->pts;
   sws_scale(sws_context_.get(), input_frame->data, input_frame->linesize, 0,

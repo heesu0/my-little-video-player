@@ -11,22 +11,22 @@ Decoder::~Decoder() = default;
 void Decoder::init() {
   auto codec = avcodec_find_decoder(
           format_context_->streams[stream_index_]->codecpar->codec_id);
-  if (!codec) LOG::Error("Couldn't find AVCodec");
+  if (!codec) LOG::ERROR("Couldn't find AVCodec");
 
   codec_context_ = std::shared_ptr<AVCodecContext>(
           avcodec_alloc_context3(codec), [](AVCodecContext* codec_context) {
             avcodec_close(codec_context);
             std::cout << "AVCodec close" << std::endl;
           });
-  if (!codec_context_) LOG::Error("Couldn't allocate AVCodecContext");
+  if (!codec_context_) LOG::ERROR("Couldn't allocate AVCodecContext");
 
   int ret = avcodec_parameters_to_context(
           codec_context_.get(),
           format_context_->streams[stream_index_]->codecpar);
-  if (ret < 0) LOG::Error(ret);
+  if (ret < 0) LOG::ERROR_FROM_FFMPEG(ret);
 
   ret = avcodec_open2(codec_context_.get(), codec, nullptr);
-  if (ret < 0) LOG::Error(ret);
+  if (ret < 0) LOG::ERROR_FROM_FFMPEG(ret);
 }
 
 bool Decoder::getFrame(std::shared_ptr<AVPacket>& packet,
@@ -35,7 +35,7 @@ bool Decoder::getFrame(std::shared_ptr<AVPacket>& packet,
   if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
     return false;
   } else if (ret < 0) {
-    LOG::Error(ret);
+    LOG::ERROR_FROM_FFMPEG(ret);
   } else {
     while (true) {
       AVFrame* frame = av_frame_alloc();

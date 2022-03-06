@@ -4,8 +4,8 @@
 
 int main(int argc, char** argv) {
   try {
-    LOG::Error("error message..");
-    // LOG::Error(-1);
+    LOG::ERROR("error message..");
+    // LOG::ERROR_FROM_FFMPEG(-1);
   } catch (const std::exception& e) {
     std::cerr << e.what() << std::endl;
     return -1;

@@ -3,6 +3,7 @@
 
 class LOG {
  public:
-  static void Error(const std::string& message);
-  static void Error(int error_code);
+  static void ERROR(const std::string& message);
+  static void ERROR_FROM_FFMPEG(int error_code);
+  static void ERROR_FROM_SDL();
 };
