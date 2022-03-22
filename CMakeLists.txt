@@ -13,12 +13,14 @@ ADD_EXECUTABLE(demuxer_example example/demuxer_example.cpp src/demuxer.cpp src/l
 ADD_EXECUTABLE(decoder_example example/decoder_example.cpp src/demuxer.cpp src/decoder.cpp src/log.cpp)
 ADD_EXECUTABLE(video_converter_example example/video_converter_example.cpp src/video_converter.cpp src/demuxer.cpp src/decoder.cpp src/log.cpp)
 ADD_EXECUTABLE(video_renderer_example example/video_renderer_example.cpp src/video_renderer.cpp src/video_converter.cpp src/demuxer.cpp src/decoder.cpp src/log.cpp)
+ADD_EXECUTABLE(audio_resampler_example example/audio_resampler_example.cpp src/video_converter.cpp src/audio_resampler.cpp src/demuxer.cpp src/decoder.cpp src/log.cpp)
 
 TARGET_LINK_LIBRARIES(log_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(demuxer_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(decoder_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(video_converter_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(video_renderer_example ffmpeg sdl2)
+TARGET_LINK_LIBRARIES(audio_resampler_example ffmpeg sdl2)
 
 #LIST(APPEND sources
 #  example/log_example.cpp

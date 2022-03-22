@@ -8,7 +8,7 @@
 - [x]  decoding
 - [x]  video converting
 - [x]  video rendering
-- [ ]  audio sampling
+- [x]  audio sampling
 - [ ]  audio rendering
 - [ ]  multi threading
 - [ ]  video synching
