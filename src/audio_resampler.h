@@ -4,6 +4,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
 }
+#include "audio_buffer.h"
 #include <memory>
 
 class AudioResampler {
@@ -13,8 +14,8 @@ class AudioResampler {
 
   void init();
 
-  int resampleFrame(std::shared_ptr<AVFrame>& input_frame,
-                    uint8_t* output_buffer);
+  void resampleFrame(std::shared_ptr<AVFrame>& input_frame,
+                     std::shared_ptr<AudioBuffer>& output_buffer);
 
  private:
   std::shared_ptr<AVCodecContext> codec_context_;

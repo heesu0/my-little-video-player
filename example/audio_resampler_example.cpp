@@ -1,3 +1,4 @@
+#include "../src/audio_buffer.h"
 #include "../src/audio_resampler.h"
 #include "../src/decoder.h"
 #include "../src/demuxer.h"
@@ -54,12 +55,11 @@ int main(int argc, char** argv) {
           std::queue<std::shared_ptr<AVFrame>> frame_queue;
           audio_decoder->getFrame(packet, frame_queue);
           while (!frame_queue.empty()) {
-            static uint8_t audio_buffer[192000 * 3 / 2];
+            std::shared_ptr<AudioBuffer> audio_buffer;
             std::shared_ptr<AVFrame> frame = frame_queue.front();
-            int audio_buffer_size =
-                    audio_resampler->resampleFrame(frame, audio_buffer);
+            audio_resampler->resampleFrame(frame, audio_buffer);
             frame_queue.pop();
-            std::cout << "Resample Audio Frame : " << audio_buffer_size
+            std::cout << "Resample Audio Frame : " << audio_buffer->size
                       << std::endl;
           }
         }
