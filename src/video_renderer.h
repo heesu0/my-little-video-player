@@ -1,9 +1,13 @@
 #pragma once
+#ifdef __linux__
+#include <SDL2/SDL.h>
+#elif __APPLE__
+#include <SDL.h>
+#endif
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 }
-#include "SDL.h"
 #include <memory>
 
 class VideoRenderer {

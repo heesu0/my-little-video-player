@@ -1,8 +1,12 @@
 #include "log.h"
+#ifdef __linux__
+#include <SDL2/SDL.h>
+#elif __APPLE__
+#include <SDL.h>
+#endif
 extern "C" {
 #include <libavutil/avutil.h>
 }
-#include "sdl.h"
 #include <array>
 #include <stdexcept>
 
