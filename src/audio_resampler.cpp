@@ -1,9 +1,11 @@
 #include "audio_resampler.h"
 #include "log.h"
+#include <iostream>
 
 namespace {
 
-constexpr int OUT_CHANNELS = 2;
+// FIXME : How to manage target settings
+constexpr int OUT_CHANNELS = 6;
 constexpr int OUT_SAMPLE_RATE = 48000;
 const AVSampleFormat OUT_SAMPLE_FORMAT = AV_SAMPLE_FMT_S16;
 
@@ -17,8 +19,9 @@ AudioResampler::~AudioResampler() = default;
 void AudioResampler::init() {
   swr_context_ = std::shared_ptr<SwrContext>(
           swr_alloc_set_opts(
-                  nullptr, av_get_default_channel_layout(OUT_CHANNELS),
-                  OUT_SAMPLE_FORMAT, OUT_SAMPLE_RATE,
+                  nullptr,
+                  av_get_default_channel_layout(codec_context_->channels),
+                  OUT_SAMPLE_FORMAT, codec_context_->sample_rate,
                   av_get_default_channel_layout(codec_context_->channels),
                   codec_context_->sample_fmt, codec_context_->sample_rate, 0,
                   nullptr),
@@ -41,11 +44,12 @@ void AudioResampler::resampleFrame(
     LOG::ERROR("Couldn't get audio buffer size");
   }
 
-  uint8_t* resampled_data = reinterpret_cast<uint8_t*>(av_malloc(output_size));
   int output_nb_samples = static_cast<int>(av_rescale_rnd(
           swr_get_delay(swr_context_.get(), input_frame->sample_rate) +
                   input_frame->nb_samples,
           OUT_SAMPLE_RATE, OUT_SAMPLE_FORMAT, AV_ROUND_INF));
+
+  auto resampled_data = new uint8_t[output_size];
   int output_samples =
           swr_convert(swr_context_.get(), &resampled_data, output_nb_samples,
                       (const uint8_t**) input_data, input_nb_samples);
@@ -55,12 +59,8 @@ void AudioResampler::resampleFrame(
 
   int resampled_data_size = OUT_CHANNELS * output_samples *
                             av_get_bytes_per_sample(OUT_SAMPLE_FORMAT);
-  AudioBuffer* resampled_buffer = new AudioBuffer();
-  resampled_buffer->buffer = resampled_data;
-  resampled_buffer->size = resampled_data_size;
-  output_buffer = std::shared_ptr<AudioBuffer>(
-          resampled_buffer, [](AudioBuffer* audio_buffer) {
-            av_free(reinterpret_cast<void*>(audio_buffer->buffer));
-            delete audio_buffer;
-          });
+  output_buffer = std::make_shared<AudioBuffer>(resampled_data_size);
+  memcpy(output_buffer->buffer(), resampled_data, resampled_data_size);
+
+  delete[] resampled_data;
 }

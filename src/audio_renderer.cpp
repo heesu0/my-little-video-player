@@ -1,11 +1,10 @@
 #include "audio_renderer.h"
 #include "log.h"
-#include <utility>
 #include <iostream>
+#include <utility>
 
 namespace {
 
-constexpr int SDL_AUDIO_MIN_BUFFER_SIZE = 512;
 constexpr int SDL_AUDIO_BUFFER_SIZE = 1024;
 constexpr int MAX_AUDIO_FRAME_SIZE = 192000;
 
@@ -40,7 +39,7 @@ void AUDIO_CALLBACK(void* userdata, Uint8* stream, int len) {
     SDL_MixAudioFormat(stream,
                        reinterpret_cast<uint8_t*>(audio_buffer) +
                                audio_buffer_index,
-                       AUDIO_S16SYS, len1, 64);
+                       AUDIO_S16SYS, len1, 100);
     len -= len1;
     stream += len1;
     audio_buffer_index += len1;
@@ -90,11 +89,9 @@ int AudioRenderer::getAudioBuffer(uint8_t* audio_buffer, int buffer_size) {
   if (!buffer_queue_.empty()) {
     mutex_.lock();
     auto front_buffer = buffer_queue_.front();
-    // FIXME : buffer size
-    buffer_size = buffer_size > front_buffer->size
-                          ? static_cast<int>(front_buffer->size)
-                          : buffer_size;
-    memcpy(audio_buffer, front_buffer->buffer, buffer_size);
+    buffer_size = buffer_size > front_buffer->size() ? front_buffer->size()
+                                                     : buffer_size;
+    memcpy(audio_buffer, front_buffer->buffer(), buffer_size);
     buffer_queue_.pop();
     mutex_.unlock();
     return buffer_size;
