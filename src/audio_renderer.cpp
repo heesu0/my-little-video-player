@@ -1,6 +1,6 @@
 #include "audio_renderer.h"
 #include "log.h"
-#include <iostream>
+#include <algorithm>
 #include <utility>
 
 namespace {
@@ -24,7 +24,8 @@ void AUDIO_CALLBACK(void* userdata, Uint8* stream, int len) {
       if (audio_size < 0) {
         audio_buffer_size = 1024;
         // Clear audio buffer
-        memset(audio_buffer, 0, (MAX_AUDIO_FRAME_SIZE * 3) / 2);
+        std::fill(audio_buffer, audio_buffer + (MAX_AUDIO_FRAME_SIZE * 3) / 2,
+                  0);
       } else {
         audio_buffer_size = audio_size;
       }
@@ -35,7 +36,7 @@ void AUDIO_CALLBACK(void* userdata, Uint8* stream, int len) {
       len1 = len;
     }
 
-    memset(stream, 0, len1);
+    std::fill(stream, stream + len1, 0);
     SDL_MixAudioFormat(stream,
                        reinterpret_cast<uint8_t*>(audio_buffer) +
                                audio_buffer_index,
@@ -91,7 +92,8 @@ int AudioRenderer::getAudioBuffer(uint8_t* audio_buffer, int buffer_size) {
     auto front_buffer = buffer_queue_.front();
     buffer_size = buffer_size > front_buffer->size() ? front_buffer->size()
                                                      : buffer_size;
-    memcpy(audio_buffer, front_buffer->buffer(), buffer_size);
+    std::copy(front_buffer->buffer(), front_buffer->buffer() + buffer_size,
+              audio_buffer);
     buffer_queue_.pop();
     mutex_.unlock();
     return buffer_size;

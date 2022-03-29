@@ -1,6 +1,6 @@
 #include "audio_resampler.h"
 #include "log.h"
-#include <iostream>
+#include <algorithm>
 
 namespace {
 
@@ -60,7 +60,8 @@ void AudioResampler::resampleFrame(
   int resampled_data_size = OUT_CHANNELS * output_samples *
                             av_get_bytes_per_sample(OUT_SAMPLE_FORMAT);
   output_buffer = std::make_shared<AudioBuffer>(resampled_data_size);
-  memcpy(output_buffer->buffer(), resampled_data, resampled_data_size);
+  std::copy(resampled_data, resampled_data + resampled_data_size,
+            output_buffer->buffer());
 
   delete[] resampled_data;
 }
