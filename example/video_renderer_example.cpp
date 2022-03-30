@@ -15,20 +15,16 @@ int main(int argc, char** argv) {
     std::unique_ptr<Demuxer> demuxer = std::make_unique<Demuxer>(argv[1]);
     demuxer->init();
 
-    int video_stream_index = demuxer->video_stream_index();
-    auto format_context = demuxer->format_context();
-
-    auto video_decoder =
-            std::make_shared<Decoder>(video_stream_index, format_context);
-
+    auto video_decoder = std::make_shared<Decoder>(
+            demuxer->video_stream_index(), demuxer->format_context());
     video_decoder->init();
 
-    auto video_codec_context = video_decoder->codec_context();
     auto video_converter =
-            std::make_shared<VideoConverter>(video_codec_context);
+            std::make_shared<VideoConverter>(video_decoder->codec_context());
     video_converter->init();
 
-    auto video_renderer = std::make_shared<VideoRenderer>(video_codec_context);
+    auto video_renderer =
+            std::make_shared<VideoRenderer>(video_decoder->codec_context());
     video_renderer->init();
 
     SDL_Event event;
@@ -46,15 +42,14 @@ int main(int argc, char** argv) {
           std::queue<std::shared_ptr<AVFrame>> frame_queue;
           video_decoder->getFrame(packet, frame_queue);
           while (!frame_queue.empty()) {
-            double fps = av_q2d(
+            /*double fps = av_q2d(
                     format_context->streams[video_stream_index]->r_frame_rate);
             double delay = 1 / static_cast<double>(fps);
-            SDL_Delay(static_cast<uint32_t>(1000 * delay) - 10);
-
+            SDL_Delay(static_cast<uint32_t>(1000 * delay) - 10);*/
             std::shared_ptr<AVFrame> converted_frame;
             std::shared_ptr<AVFrame> frame = frame_queue.front();
             video_converter->convertFrame(frame, converted_frame);
-            video_renderer->renderFrame(converted_frame);
+            video_renderer->enqueueFrame(frame);
             frame_queue.pop();
             std::cout << "Video frame" << std::endl;
           }

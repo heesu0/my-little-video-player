@@ -1,10 +1,11 @@
 #include "video_renderer.h"
 #include "log.h"
 
-#include <iostream>
+#include <chrono>
+#include <thread>
 
 VideoRenderer::VideoRenderer(std::shared_ptr<AVCodecContext>& codec_context)
-    : codec_context_(codec_context) {}
+    : codec_context_(codec_context), running_(false) {}
 
 VideoRenderer::~VideoRenderer() = default;
 
@@ -41,6 +42,38 @@ void VideoRenderer::init() {
   SDL_SetRenderDrawColor(renderer_.get(), 0, 0, 0, 255);
   SDL_RenderClear(renderer_.get());
   SDL_RenderPresent(renderer_.get());
+
+  task_ = std::async(std::launch::async, &VideoRenderer::run, this);
+}
+
+void VideoRenderer::run() {
+  running_ = true;
+  while (running_) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    mutex_.lock();
+    if (!frame_queue_.empty()) {
+      std::shared_ptr<AVFrame> frame = frame_queue_.front();
+      renderFrame(frame);
+      frame_queue_.pop();
+    }
+    mutex_.unlock();
+  }
+}
+
+void VideoRenderer::start() {
+  running_ = true;
+  task_ = std::async(std::launch::async, &VideoRenderer::run, this);
+}
+
+void VideoRenderer::stop() {
+  running_ = false;
+  task_.get();
+}
+
+void VideoRenderer::enqueueFrame(std::shared_ptr<AVFrame>& frame) {
+  mutex_.lock();
+  frame_queue_.push(frame);
+  mutex_.unlock();
 }
 
 void VideoRenderer::renderFrame(std::shared_ptr<AVFrame>& frame) {
