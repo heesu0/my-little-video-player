@@ -3,7 +3,7 @@
 
 class AudioBuffer {
  public:
-  explicit AudioBuffer(int size);
+  explicit AudioBuffer(uint64_t size, uint64_t pts);
   ~AudioBuffer();
 
   AudioBuffer(const AudioBuffer& audio_buffer);
@@ -13,9 +13,11 @@ class AudioBuffer {
   AudioBuffer& operator=(AudioBuffer&& audio_buffer) noexcept;
 
   uint8_t* buffer() const;
-  int size() const;
+  uint64_t size() const;
+  uint64_t pts() const;
 
  private:
   uint8_t* buffer_;
-  int size_;
+  uint64_t size_;
+  uint64_t pts_;
 };

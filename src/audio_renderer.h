@@ -15,7 +15,8 @@ extern "C" {
 
 class AudioRenderer {
  public:
-  explicit AudioRenderer(std::shared_ptr<AVCodecContext>& codec_context);
+  explicit AudioRenderer(std::shared_ptr<AVCodecContext>& codec_context,
+                         AVRational time_base);
   ~AudioRenderer();
 
   void init();
@@ -23,8 +24,14 @@ class AudioRenderer {
   void enqueueAudioBuffer(std::shared_ptr<AudioBuffer>& audio_buffer);
   int getAudioBuffer(uint8_t* audio_buffer, int buffer_size);
 
+  uint64_t getAudioTime() const { return audio_clock_; }
+  uint64_t getMsFromBytes(uint32_t len) const;
+
  private:
   std::shared_ptr<AVCodecContext> codec_context_;
   std::queue<std::shared_ptr<AudioBuffer>> buffer_queue_;
   std::mutex mutex_;
+  AVRational time_base_;
+  uint64_t audio_clock_;
+  uint64_t bytes_per_sec_;
 };

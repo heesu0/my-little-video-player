@@ -1,5 +1,6 @@
 #include "video_converter.h"
 #include "log.h"
+#include <iostream>
 
 VideoConverter::VideoConverter(std::shared_ptr<AVCodecContext>& codec_context)
     : codec_context_(codec_context) {}

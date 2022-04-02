@@ -1,3 +1,6 @@
+#include "../src/audio_buffer.h"
+#include "../src/audio_renderer.h"
+#include "../src/audio_resampler.h"
 #include "../src/decoder.h"
 #include "../src/demuxer.h"
 #include "../src/video_converter.h"
@@ -19,13 +22,31 @@ int main(int argc, char** argv) {
             demuxer->video_stream_index(), demuxer->format_context());
     video_decoder->init();
 
+    auto audio_decoder = std::make_shared<Decoder>(
+            demuxer->audio_stream_index(), demuxer->format_context());
+    audio_decoder->init();
+
     auto video_converter =
             std::make_shared<VideoConverter>(video_decoder->codec_context());
     video_converter->init();
 
-    auto video_renderer =
-            std::make_shared<VideoRenderer>(video_decoder->codec_context());
+    auto audio_resampler =
+            std::make_shared<AudioResampler>(audio_decoder->codec_context());
+    audio_resampler->init();
+
+    auto video_time_base = demuxer->format_context()
+                                   ->streams[video_decoder->stream_index()]
+                                   ->time_base;
+    auto video_renderer = std::make_shared<VideoRenderer>(
+            video_decoder->codec_context(), video_time_base);
     video_renderer->init();
+
+    auto audio_time_base = demuxer->format_context()
+                                   ->streams[audio_decoder->stream_index()]
+                                   ->time_base;
+    auto audio_renderer = std::make_shared<AudioRenderer>(
+            audio_decoder->codec_context(), audio_time_base);
+    audio_renderer->init();
 
     SDL_Event event;
     while (true) {
@@ -42,16 +63,21 @@ int main(int argc, char** argv) {
           std::queue<std::shared_ptr<AVFrame>> frame_queue;
           video_decoder->getFrame(packet, frame_queue);
           while (!frame_queue.empty()) {
-            /*double fps = av_q2d(
-                    format_context->streams[video_stream_index]->r_frame_rate);
-            double delay = 1 / static_cast<double>(fps);
-            SDL_Delay(static_cast<uint32_t>(1000 * delay) - 10);*/
             std::shared_ptr<AVFrame> converted_frame;
             std::shared_ptr<AVFrame> frame = frame_queue.front();
             video_converter->convertFrame(frame, converted_frame);
             video_renderer->enqueueFrame(frame);
             frame_queue.pop();
-            std::cout << "Video frame" << std::endl;
+          }
+        } else if (packet->stream_index == audio_decoder->stream_index()) {
+          std::queue<std::shared_ptr<AVFrame>> frame_queue;
+          audio_decoder->getFrame(packet, frame_queue);
+          while (!frame_queue.empty()) {
+            std::shared_ptr<AudioBuffer> audio_buffer;
+            std::shared_ptr<AVFrame> frame = frame_queue.front();
+            audio_resampler->resampleFrame(frame, audio_buffer);
+            audio_renderer->enqueueAudioBuffer(audio_buffer);
+            frame_queue.pop();
           }
         }
       }

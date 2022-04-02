@@ -24,8 +24,11 @@ int main(int argc, char** argv) {
             std::make_shared<AudioResampler>(audio_decoder->codec_context());
     audio_resampler->init();
 
-    auto audio_renderer =
-            std::make_shared<AudioRenderer>(audio_decoder->codec_context());
+    auto audio_time_base = demuxer->format_context()
+                                   ->streams[audio_decoder->stream_index()]
+                                   ->time_base;
+    auto audio_renderer = std::make_shared<AudioRenderer>(
+            audio_decoder->codec_context(), audio_time_base);
     audio_renderer->init();
 
     SDL_Event event;

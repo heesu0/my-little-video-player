@@ -10,7 +10,7 @@
 - [x]  video rendering
 - [x]  audio sampling
 - [x]  audio rendering
-- [ ]  multi threading
-- [ ]  video synching
-- [ ]  audio synching
+- [x]  multi threading
+- [x]  video synching
+- [x]  audio synching
 - [ ]  seeking, stop

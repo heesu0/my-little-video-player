@@ -8,15 +8,16 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 }
+#include <atomic>
 #include <future>
 #include <memory>
 #include <mutex>
 #include <queue>
-#include <atomic>
 
 class VideoRenderer {
  public:
-  explicit VideoRenderer(std::shared_ptr<AVCodecContext>& codec_context);
+  explicit VideoRenderer(std::shared_ptr<AVCodecContext>& codec_context,
+                         AVRational time_base);
   ~VideoRenderer();
 
   void init();
@@ -26,6 +27,7 @@ class VideoRenderer {
 
   void enqueueFrame(std::shared_ptr<AVFrame>& frame);
   void renderFrame(std::shared_ptr<AVFrame>& frame);
+  uint64_t getTimestamp(std::shared_ptr<AVFrame>& frame);
 
  private:
   std::shared_ptr<SDL_Window> window_;
@@ -36,4 +38,5 @@ class VideoRenderer {
   std::atomic<bool> running_;
   std::future<void> task_;
   std::mutex mutex_;
+  AVRational time_base_;
 };
