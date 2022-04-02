@@ -10,6 +10,7 @@ ADD_SUBDIRECTORY(lib/sdl2)
 
 SET(sources
   src/log.cpp
+  src/timer.cpp
   src/demuxer.cpp
   src/decoder.cpp
   src/video_converter.cpp
