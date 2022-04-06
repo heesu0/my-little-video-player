@@ -18,6 +18,7 @@ SET(sources
   src/audio_resampler.cpp
   src/audio_renderer.cpp
   src/audio_buffer.cpp
+  src/task_queue.h
   )
 
 ADD_EXECUTABLE(log_example example/log_example.cpp ${sources})
@@ -27,6 +28,7 @@ ADD_EXECUTABLE(video_converter_example example/video_converter_example.cpp ${sou
 ADD_EXECUTABLE(video_renderer_example example/video_renderer_example.cpp ${sources})
 ADD_EXECUTABLE(audio_resampler_example example/audio_resampler_example.cpp ${sources})
 ADD_EXECUTABLE(audio_renderer_example example/audio_renderer_example.cpp ${sources})
+ADD_EXECUTABLE(video_player src/video_player.cpp ${sources})
 
 TARGET_LINK_LIBRARIES(log_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(demuxer_example ffmpeg sdl2)
@@ -35,11 +37,4 @@ TARGET_LINK_LIBRARIES(video_converter_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(video_renderer_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(audio_resampler_example ffmpeg sdl2)
 TARGET_LINK_LIBRARIES(audio_renderer_example ffmpeg sdl2)
-
-#LIST(APPEND sources
-#  example/log_example.cpp
-#  src/log.cpp
-#  )
-
-#ADD_EXECUTABLE(video-player ${sources})
-#TARGET_LINK_LIBRARIES(video-player ffmpeg sdl2)
+TARGET_LINK_LIBRARIES(video_player ffmpeg sdl2)

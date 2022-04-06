@@ -21,6 +21,7 @@ void AUDIO_CALLBACK(void* userdata, Uint8* stream, int len) {
   int len1 = -1;
   int audio_size = -1;
 
+
   while (len > 0) {
     if (audio_buffer_index >= audio_buffer_size) {
       audio_size = audio_renderer->getAudioBuffer(audio_buffer,
@@ -107,8 +108,7 @@ int AudioRenderer::getAudioBuffer(uint8_t* audio_buffer, int buffer_size) {
     std::copy(front_buffer->buffer(), front_buffer->buffer() + buffer_size,
               audio_buffer);
     buffer_queue_.pop();
-    audio_clock_ = static_cast<uint64_t>(av_q2d(time_base_)) *
-                   front_buffer->pts() * 1000;
+    audio_clock_ = av_q2d(time_base_) * front_buffer->pts() * 1000;
     mutex_.unlock();
     return buffer_size;
   }
