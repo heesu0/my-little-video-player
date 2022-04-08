@@ -25,6 +25,11 @@ $ ./init.sh
 $ ./build/video_player ./sample_video.mp4
 ```
 
+### Control
+- `Space Key` : Play / Stop
+- `Arrow Key` : Forward / Reverse
+
+
 ## TODO
 - [x]  logging
 - [x]  demuxing
@@ -36,4 +41,4 @@ $ ./build/video_player ./sample_video.mp4
 - [x]  multi threading
 - [x]  video synching
 - [x]  audio synching
-- [x]  seeking, stop
+- [x]  seeking, start, stop
