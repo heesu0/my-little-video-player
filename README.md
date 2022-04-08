@@ -2,18 +2,27 @@
 
 `my-little-video-player` is a video player implemented as C++14 using FFmpeg and SDL2
 
+## Demo
+![demo1](https://user-images.githubusercontent.com/34677157/162398532-4edf5356-e88d-4a67-bea9-38d421a437a7.gif)
+
+
+
 ## Usage
 
 ### Linux
 ```
 $ sudo apt-get install cmake pkg-config ffmpeg libsdl2-dev
-$ ./init.sh
 ```
 
-### macOS
+### MacOS
 ```
 $ brew install cmake pkg-config ffmpeg sdl2
+```
+
+### Build & Run
+```
 $ ./init.sh
+$ ./build/video_player ./sample_video.mp4
 ```
 
 ## TODO
