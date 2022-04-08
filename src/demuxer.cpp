@@ -18,7 +18,7 @@ void Demuxer::init() {
   format_context_ = std::shared_ptr<AVFormatContext>(
           format_context, [](AVFormatContext* format_context) {
             avformat_close_input(&format_context);
-            std::cout << "AVFormat close input" << std::endl;
+            std::cout << "AVFormat close" << std::endl;
           });
   ret = avformat_find_stream_info(format_context_.get(), nullptr);
   if (ret < 0) LOG::ERROR_FROM_FFMPEG(ret);

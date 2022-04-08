@@ -111,6 +111,7 @@ int main(int argc, char** argv) {
         switch (event.key.keysym.sym) {
           case SDLK_p:
           case SDLK_SPACE:
+            std::cout << "Press Space" << std::endl;
             running = !running;
             if (running) {
               video_renderer->start();
@@ -121,6 +122,7 @@ int main(int argc, char** argv) {
             }
             break;
           case SDLK_LEFT:
+            std::cout << "Press Reverse" << std::endl;
             flushTaskQueue();
             for (auto& task : task_queue) {
               task.get();
@@ -138,6 +140,7 @@ int main(int argc, char** argv) {
             demuxing_completed = false;
             break;
           case SDLK_RIGHT:
+            std::cout << "Press Forward" << std::endl;
             flushTaskQueue();
             for (auto& task : task_queue) {
               task.get();
@@ -157,7 +160,7 @@ int main(int argc, char** argv) {
         }
       } else if (event.type == SDL_QUIT) {
         video_renderer->stop();
-        std::cout << "SDL QUIT" << std::endl;
+        std::cout << "Press Quit" << std::endl;
         SDL_Quit();
         break;
       } else if (event.type == SDL_DEMUXING) {
