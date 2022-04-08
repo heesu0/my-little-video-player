@@ -36,6 +36,15 @@ void Demuxer::init() {
   }
 }
 
+void Demuxer::seek(uint64_t time) {
+  int64_t seek_target = static_cast<int64_t>(time) * 1000;
+  int64_t seek_max = INT64_MAX;
+  int64_t seek_min = INT64_MIN;
+  auto ret = avformat_seek_file(format_context_.get(), -1, seek_min,
+                                seek_target, seek_max, AVSEEK_FLAG_FRAME);
+  if (ret < 0) LOG::ERROR_FROM_FFMPEG(ret);
+}
+
 bool Demuxer::getPacket(std::shared_ptr<AVPacket>& packet) {
   AVPacket* av_packet = av_packet_alloc();
   if (av_read_frame(format_context_.get(), av_packet) >= 0) {
@@ -43,7 +52,7 @@ bool Demuxer::getPacket(std::shared_ptr<AVPacket>& packet) {
             av_packet, [](AVPacket* packet) { av_packet_free(&packet); });
     return true;
   } else {
-    std::cout << "End of frame" << std::endl;
+    // std::cout << "End of frame" << std::endl;
     av_packet_free(&av_packet);
     return false;
   }

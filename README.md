@@ -27,4 +27,4 @@ $ ./init.sh
 - [x]  multi threading
 - [x]  video synching
 - [x]  audio synching
-- [ ]  seeking, stop
+- [x]  seeking, stop

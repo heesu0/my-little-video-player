@@ -13,6 +13,7 @@ class Decoder {
   ~Decoder();
 
   void init();
+  void flush();
 
   bool getFrame(std::shared_ptr<AVPacket>& packet,
                 std::queue<std::shared_ptr<AVFrame>>& frame_queue);

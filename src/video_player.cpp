@@ -9,6 +9,7 @@
 #include "decoder.h"
 #include "demuxer.h"
 #include "task_queue.h"
+#include "timer.h"
 #include "video_converter.h"
 #include "video_renderer.h"
 #include <atomic>
@@ -19,10 +20,9 @@
 #include <mutex>
 #include <vector>
 
-constexpr int MAX_SIZE = 40;
-constexpr int MIN_SIZE = 20;
+constexpr int MAX_COUNT = 20;
 
-std::atomic<int> demuxer_task_count(0);
+std::atomic<int> demuxing_count(0);
 
 TaskQueue<AVPacket> video_decoder_queue;
 TaskQueue<AVPacket> audio_decoder_queue;
@@ -107,7 +107,56 @@ int main(int argc, char** argv) {
     while (true) {
       SDL_PollEvent(&event);
 
-      if (event.type == SDL_QUIT) {
+      if (event.type == SDL_KEYDOWN) {
+        switch (event.key.keysym.sym) {
+          case SDLK_p:
+          case SDLK_SPACE:
+            running = !running;
+            if (running) {
+              video_renderer->start();
+              audio_renderer->start();
+            } else {
+              video_renderer->stop();
+              audio_renderer->stop();
+            }
+            break;
+          case SDLK_LEFT:
+            flushTaskQueue();
+            for (auto& task : task_queue) {
+              task.get();
+            }
+            task_queue.clear();
+            video_renderer->flush();
+            audio_renderer->flush();
+            video_decoder->flush();
+            audio_decoder->flush();
+            SDL_PumpEvents();
+            demuxing_count = 0;
+            Timer::getInstance()->setAudioTime(
+                    Timer::getInstance()->getAudioTime() - (10 * 1000));
+            demuxer->seek(Timer::getInstance()->getAudioTime());
+            demuxing_completed = false;
+            break;
+          case SDLK_RIGHT:
+            flushTaskQueue();
+            for (auto& task : task_queue) {
+              task.get();
+            }
+            task_queue.clear();
+            video_renderer->flush();
+            audio_renderer->flush();
+            video_decoder->flush();
+            audio_decoder->flush();
+            SDL_PumpEvents();
+            demuxing_count = 0;
+            Timer::getInstance()->setAudioTime(
+                    Timer::getInstance()->getAudioTime() + (10 * 1000));
+            demuxer->seek(Timer::getInstance()->getAudioTime());
+            demuxing_completed = false;
+            break;
+        }
+      } else if (event.type == SDL_QUIT) {
+        video_renderer->stop();
         std::cout << "SDL QUIT" << std::endl;
         SDL_Quit();
         break;
@@ -149,13 +198,13 @@ int main(int argc, char** argv) {
       }
 
       if (!demuxing_completed && running) {
-        if (video_renderer_queue.size() < MIN_SIZE ||
-            audio_renderer_queue.size() < MIN_SIZE) {
-          if (demuxer_task_count < 20) {
-            SDL_Event demux_event;
-            demux_event.type = SDL_DEMUXING;
-            demuxer_task_count++;
-            SDL_PushEvent(&demux_event);
+        if (video_renderer_queue.size() < MAX_COUNT ||
+            audio_renderer_queue.size() < MAX_COUNT) {
+          if (demuxing_count < 20) {
+            SDL_Event demuxing_event;
+            demuxing_event.type = SDL_DEMUXING;
+            demuxing_count++;
+            SDL_PushEvent(&demuxing_event);
           }
         }
       }
@@ -190,7 +239,7 @@ void demuxing(const std::shared_ptr<Demuxer>& demuxer) {
   }
 
   SDL_PushEvent(&demuxing_event);
-  demuxer_task_count--;
+  demuxing_count--;
 }
 
 void videoDecoding(const std::shared_ptr<Decoder>& decoder) {

@@ -24,6 +24,7 @@ class VideoRenderer {
   void run();
   void start();
   void stop();
+  void flush();
 
   void enqueueFrame(std::shared_ptr<AVFrame>& frame);
   void renderFrame(std::shared_ptr<AVFrame>& frame);

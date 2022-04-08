@@ -3,7 +3,7 @@ PROJECT(my-little-video-player C CXX)
 
 SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_BUILD_TYPE Debug)
-SET(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic")
+SET(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
 
 ADD_SUBDIRECTORY(lib/ffmpeg)
 ADD_SUBDIRECTORY(lib/sdl2)

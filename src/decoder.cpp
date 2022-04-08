@@ -29,6 +29,8 @@ void Decoder::init() {
   if (ret < 0) LOG::ERROR_FROM_FFMPEG(ret);
 }
 
+void Decoder::flush() { avcodec_flush_buffers(codec_context_.get()); }
+
 bool Decoder::getFrame(std::shared_ptr<AVPacket>& packet,
                        std::queue<std::shared_ptr<AVFrame>>& frame_queue) {
   int ret = avcodec_send_packet(codec_context_.get(), packet.get());

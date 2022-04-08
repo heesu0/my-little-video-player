@@ -11,6 +11,7 @@ class Demuxer {
   ~Demuxer();
 
   void init();
+  void seek(uint64_t time);
 
   bool getPacket(std::shared_ptr<AVPacket>& packet);
   void printFileInfo();

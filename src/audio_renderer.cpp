@@ -59,7 +59,7 @@ void AUDIO_CALLBACK(void* userdata, Uint8* stream, int len) {
 AudioRenderer::AudioRenderer(std::shared_ptr<AVCodecContext>& codec_context,
                              AVRational time_base)
     : codec_context_(codec_context), time_base_(time_base), audio_clock_(0),
-      bytes_per_sec_(0) {}
+      bytes_per_sec_(0), device_id_(0) {}
 
 AudioRenderer::~AudioRenderer() = default;
 
@@ -82,13 +82,25 @@ void AudioRenderer::init() {
           nullptr, wanted_spec.channels, wanted_spec.freq,
           static_cast<AVSampleFormat>(wanted_spec.format), 1);
 
-  SDL_AudioDeviceID device_id =
-          SDL_OpenAudioDevice(nullptr, 0, &wanted_spec, &spec, 0);
-  if (device_id == 0) {
+  device_id_ = SDL_OpenAudioDevice(nullptr, 0, &wanted_spec, &spec, 0);
+  if (device_id_ == 0) {
     LOG::ERROR_FROM_SDL();
   }
 
-  SDL_PauseAudioDevice(device_id, 0);
+  SDL_PauseAudioDevice(device_id_, 0);
+}
+
+void AudioRenderer::start() const { SDL_PauseAudioDevice(device_id_, 0); }
+
+void AudioRenderer::stop() const { SDL_PauseAudioDevice(device_id_, 1); }
+
+void AudioRenderer::flush() {
+  stop();
+  mutex_.lock();
+  buffer_queue_ = std::queue<std::shared_ptr<AudioBuffer>>();
+  SDL_ClearQueuedAudio(device_id_);
+  mutex_.unlock();
+  start();
 }
 
 void AudioRenderer::enqueueAudioBuffer(

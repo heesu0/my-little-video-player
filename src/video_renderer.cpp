@@ -76,6 +76,14 @@ void VideoRenderer::stop() {
   task_.get();
 }
 
+void VideoRenderer::flush() {
+  stop();
+  mutex_.lock();
+  frame_queue_ = std::queue<std::shared_ptr<AVFrame>>();
+  mutex_.unlock();
+  start();
+}
+
 void VideoRenderer::enqueueFrame(std::shared_ptr<AVFrame>& frame) {
   mutex_.lock();
   frame_queue_.push(frame);
