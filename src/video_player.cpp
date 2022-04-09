@@ -107,7 +107,12 @@ int main(int argc, char** argv) {
     while (true) {
       SDL_PollEvent(&event);
 
-      if (event.type == SDL_KEYDOWN) {
+      if (event.type == SDL_QUIT) {
+        flushTaskQueue();
+        std::cout << "Press Quit" << std::endl;
+        SDL_Quit();
+        break;
+      } else if (event.type == SDL_KEYDOWN) {
         switch (event.key.keysym.sym) {
           case SDLK_p:
           case SDLK_SPACE:
@@ -158,11 +163,6 @@ int main(int argc, char** argv) {
             demuxing_completed = false;
             break;
         }
-      } else if (event.type == SDL_QUIT) {
-        video_renderer->stop();
-        std::cout << "Press Quit" << std::endl;
-        SDL_Quit();
-        break;
       } else if (event.type == SDL_DEMUXING) {
         task_queue.push_back(std::async(std::launch::async, demuxing, demuxer));
       } else if (event.type == SDL_VIDEO_DECODING) {

@@ -2,6 +2,7 @@
 #include "log.h"
 #include "timer.h"
 #include <algorithm>
+#include <iostream>
 #include <utility>
 
 namespace {
@@ -17,10 +18,8 @@ void AUDIO_CALLBACK(void* userdata, Uint8* stream, int len) {
   static uint8_t audio_buffer[(MAX_AUDIO_FRAME_SIZE * 3) / 2];
   static unsigned int audio_buffer_size = 0;
   static unsigned int audio_buffer_index = 0;
-  int audio_bytes_len = len;
   int len1 = -1;
   int audio_size = -1;
-
 
   while (len > 0) {
     if (audio_buffer_index >= audio_buffer_size) {
@@ -49,9 +48,7 @@ void AUDIO_CALLBACK(void* userdata, Uint8* stream, int len) {
     audio_buffer_index += len1;
   }
 
-  audio_time = audio_renderer->getAudioTime() -
-               audio_renderer->getMsFromBytes(audio_bytes_len) -
-               2 * audio_renderer->getMsFromBytes(audio_buffer_size);
+  audio_time = audio_renderer->getAudioTime();
 }
 
 }//namespace
@@ -59,7 +56,7 @@ void AUDIO_CALLBACK(void* userdata, Uint8* stream, int len) {
 AudioRenderer::AudioRenderer(std::shared_ptr<AVCodecContext>& codec_context,
                              AVRational time_base)
     : codec_context_(codec_context), time_base_(time_base), audio_clock_(0),
-      bytes_per_sec_(0), device_id_(0) {}
+      device_id_(0) {}
 
 AudioRenderer::~AudioRenderer() = default;
 
@@ -78,9 +75,6 @@ void AudioRenderer::init() {
   wanted_spec.samples = SDL_AUDIO_BUFFER_SIZE;
   wanted_spec.callback = AUDIO_CALLBACK;
   wanted_spec.userdata = this;
-  bytes_per_sec_ = av_samples_get_buffer_size(
-          nullptr, wanted_spec.channels, wanted_spec.freq,
-          static_cast<AVSampleFormat>(wanted_spec.format), 1);
 
   device_id_ = SDL_OpenAudioDevice(nullptr, 0, &wanted_spec, &spec, 0);
   if (device_id_ == 0) {
@@ -120,13 +114,12 @@ int AudioRenderer::getAudioBuffer(uint8_t* audio_buffer, int buffer_size) {
     std::copy(front_buffer->buffer(), front_buffer->buffer() + buffer_size,
               audio_buffer);
     buffer_queue_.pop();
-    audio_clock_ = av_q2d(time_base_) * front_buffer->pts() * 1000;
+    audio_clock_ = static_cast<uint64_t>(av_q2d(time_base_) *
+                                         front_buffer->pts() * 1000);
     mutex_.unlock();
     return buffer_size;
   }
   return -1;
 }
 
-uint64_t AudioRenderer::getMsFromBytes(uint32_t len) const {
-  return (len * 1000) / bytes_per_sec_;
-}
+uint64_t AudioRenderer::getAudioTime() const { return audio_clock_; }

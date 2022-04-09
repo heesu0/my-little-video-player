@@ -28,7 +28,7 @@ class VideoRenderer {
 
   void enqueueFrame(std::shared_ptr<AVFrame>& frame);
   void renderFrame(std::shared_ptr<AVFrame>& frame);
-  uint64_t getTimestamp(std::shared_ptr<AVFrame>& frame);
+  uint64_t getVideoTime(std::shared_ptr<AVFrame>& frame);
 
  private:
   std::shared_ptr<SDL_Window> window_;

@@ -1,7 +1,6 @@
 #include "video_renderer.h"
 #include "log.h"
 #include "timer.h"
-
 #include <chrono>
 #include <thread>
 
@@ -55,9 +54,9 @@ void VideoRenderer::run() {
     mutex_.lock();
     if (!frame_queue_.empty()) {
       std::shared_ptr<AVFrame> frame = frame_queue_.front();
-      if (getTimestamp(frame) + 200 < Timer::getInstance()->getAudioTime()) {
+      if (getVideoTime(frame) + 200 < Timer::getInstance()->getAudioTime()) {
         frame_queue_.pop();
-      } else if (getTimestamp(frame) < Timer::getInstance()->getAudioTime()) {
+      } else if (getVideoTime(frame) < Timer::getInstance()->getAudioTime()) {
         renderFrame(frame);
         frame_queue_.pop();
       }
@@ -99,6 +98,6 @@ void VideoRenderer::renderFrame(std::shared_ptr<AVFrame>& frame) {
   SDL_RenderPresent(renderer_.get());
 }
 
-uint64_t VideoRenderer::getTimestamp(std::shared_ptr<AVFrame>& frame) {
+uint64_t VideoRenderer::getVideoTime(std::shared_ptr<AVFrame>& frame) {
   return static_cast<uint64_t>(av_q2d(time_base_) * frame->pts * 1000);
 }
