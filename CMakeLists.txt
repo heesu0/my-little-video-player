@@ -4,9 +4,11 @@ PROJECT(my-little-video-player C CXX)
 SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_BUILD_TYPE Debug)
 SET(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
+SET(THREADS_PREFER_PTHREAD_FLAG ON)
 
 ADD_SUBDIRECTORY(lib/ffmpeg)
 ADD_SUBDIRECTORY(lib/sdl2)
+FIND_PACKAGE(Threads)
 
 SET(sources
   src/log.cpp
@@ -37,4 +39,4 @@ ADD_EXECUTABLE(video_player src/video_player.cpp ${sources})
 #TARGET_LINK_LIBRARIES(video_renderer_example ffmpeg sdl2)
 #TARGET_LINK_LIBRARIES(audio_resampler_example ffmpeg sdl2)
 #TARGET_LINK_LIBRARIES(audio_renderer_example ffmpeg sdl2)
-TARGET_LINK_LIBRARIES(video_player ffmpeg sdl2)
+TARGET_LINK_LIBRARIES(video_player ffmpeg sdl2 Threads::Threads)
