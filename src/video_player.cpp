@@ -1,331 +1,362 @@
-#ifdef __linux__
-#include <SDL2/SDL.h>
-#elif __APPLE__
-#include <SDL.h>
-#endif
+#include "video_player.h"
+
 #include "audio_buffer.h"
 #include "audio_renderer.h"
 #include "audio_resampler.h"
 #include "decoder.h"
 #include "demuxer.h"
-#include "task_queue.h"
 #include "timer.h"
 #include "video_converter.h"
 #include "video_renderer.h"
-#include <atomic>
-#include <chrono>
-#include <future>
+
+#include <SDL.h>
+#include <algorithm>
 #include <iostream>
-#include <memory>
-#include <mutex>
-#include <vector>
 
-constexpr int MAX_COUNT = 20;
+namespace {
 
-std::atomic<int> demuxing_count(0);
+constexpr int MAX_RENDERER_QUEUE_SIZE = 20;
+constexpr int MAX_DEMUXING_COUNT = 20;
 
-TaskQueue<AVPacket> video_decoder_queue;
-TaskQueue<AVPacket> audio_decoder_queue;
-TaskQueue<AVFrame> video_converter_queue;
-TaskQueue<AVFrame> audio_resampler_queue;
-TaskQueue<AVFrame> video_renderer_queue;
-TaskQueue<AudioBuffer> audio_renderer_queue;
+enum EventType
+{
+    DEMUXING,
+    VIDEO_DECODING,
+    AUDIO_DECODING,
+    VIDEO_CONVERTING,
+    AUDIO_RESAMPLING,
+    VIDEO_RENDERING,
+    AUDIO_RENDERING,
+    DEMUXING_COMPLETED,
+    EVENT_COUNT
+};
 
-std::mutex demuxer_lock, video_decoder_lock, audio_decoder_lock,
-        video_converter_lock, audio_resampler_lock, video_renderer_lock,
-        audio_renderer_lock;
+Uint32 SDL_EVENTS[EVENT_COUNT];
 
-Uint32 SDL_DEMUXING, SDL_VIDEO_DECODING, SDL_AUDIO_DECODING,
-        SDL_VIDEO_CONVERTING, SDL_AUDIO_RESAMPLING, SDL_VIDEO_RENDERING,
-        SDL_AUDIO_RENDERING, SDL_DEMUXING_COMPLETED;
-
-void demuxing(const std::shared_ptr<Demuxer>& demuxer);
-void videoDecoding(const std::shared_ptr<Decoder>& decoder);
-void audioDecoding(const std::shared_ptr<Decoder>& decoder);
-void videoConverting(const std::shared_ptr<VideoConverter>& converter);
-void audioResampling(const std::shared_ptr<AudioResampler>& resampler);
-void videoRendering(const std::shared_ptr<VideoRenderer>& renderer);
-void audioRendering(const std::shared_ptr<AudioRenderer>& renderer);
-void flushTaskQueue();
-
-int main(int argc, char** argv) {
-  try {
-    if (argc != 2) {
-      throw std::logic_error("Invalid arguments");
+void REGIGSTER_SDL_EVENTS()
+{
+    for (int i = 0; i < EVENT_COUNT; ++i)
+    {
+        SDL_EVENTS[i] = SDL_RegisterEvents(i + 1);
     }
+}
 
-    auto demuxer = std::make_shared<Demuxer>(argv[1]);
-    demuxer->init();
+} // namespace
 
-    auto video_decoder = std::make_shared<Decoder>(
-            demuxer->video_stream_index(), demuxer->format_context());
-    video_decoder->init();
+VideoPlayer::VideoPlayer(const std::string& filename) : filename_(filename)
+{
+}
 
-    auto audio_decoder = std::make_shared<Decoder>(
-            demuxer->audio_stream_index(), demuxer->format_context());
-    audio_decoder->init();
+void VideoPlayer::Init()
+{
+    demuxer_ = std::make_shared<Demuxer>(filename_);
+    demuxer_->Init();
 
-    auto video_codec_context = video_decoder->codec_context();
-    auto audio_codec_context = audio_decoder->codec_context();
+    video_decoder_ = std::make_shared<Decoder>(demuxer_->format_context(), demuxer_->video_stream_index());
+    video_decoder_->Init();
 
-    auto video_converter =
-            std::make_shared<VideoConverter>(video_codec_context);
-    video_converter->init();
+    audio_decoder_ = std::make_shared<Decoder>(demuxer_->format_context(), demuxer_->audio_stream_index());
+    audio_decoder_->Init();
 
-    auto audio_resampler =
-            std::make_shared<AudioResampler>(audio_codec_context);
-    audio_resampler->init();
+    auto video_codec_context = video_decoder_->codec_context();
+    auto audio_codec_context = audio_decoder_->codec_context();
 
-    auto video_time_base = demuxer->format_context()
-                                   ->streams[video_decoder->stream_index()]
-                                   ->time_base;
-    auto audio_time_base = demuxer->format_context()
-                                   ->streams[audio_decoder->stream_index()]
-                                   ->time_base;
+    video_converter_ = std::make_shared<VideoConverter>(video_codec_context);
+    video_converter_->Init();
 
-    auto video_renderer = std::make_shared<VideoRenderer>(video_codec_context,
-                                                          video_time_base);
-    video_renderer->init();
+    audio_resampler_ = std::make_shared<AudioResampler>(audio_codec_context);
+    audio_resampler_->Init();
 
-    auto audio_renderer = std::make_shared<AudioRenderer>(audio_codec_context,
-                                                          audio_time_base);
-    audio_renderer->init();
+    auto video_time_base = demuxer_->format_context()->streams[video_decoder_->stream_index()]->time_base;
+    auto audio_time_base = demuxer_->format_context()->streams[audio_decoder_->stream_index()]->time_base;
 
-    std::vector<std::future<void>> task_queue;
-    bool demuxing_completed = false;
-    bool running = true;
+    video_renderer_ = std::make_shared<VideoRenderer>(video_codec_context, video_time_base);
+    video_renderer_->Init();
 
-    SDL_DEMUXING = SDL_RegisterEvents(1);
-    SDL_VIDEO_DECODING = SDL_RegisterEvents(2);
-    SDL_AUDIO_DECODING = SDL_RegisterEvents(3);
-    SDL_VIDEO_CONVERTING = SDL_RegisterEvents(4);
-    SDL_AUDIO_RESAMPLING = SDL_RegisterEvents(5);
-    SDL_VIDEO_RENDERING = SDL_RegisterEvents(6);
-    SDL_AUDIO_RENDERING = SDL_RegisterEvents(7);
-    SDL_DEMUXING_COMPLETED = SDL_RegisterEvents(8);
+    audio_renderer_ = std::make_shared<AudioRenderer>(audio_codec_context, audio_time_base);
+    audio_renderer_->Init();
+
+    REGIGSTER_SDL_EVENTS();
+}
+
+void VideoPlayer::Run()
+{
     SDL_Event event;
-    while (true) {
-      SDL_PollEvent(&event);
+    while (true)
+    {
+        SDL_PollEvent(&event);
 
-      if (event.type == SDL_QUIT) {
-        flushTaskQueue();
-        std::cout << "Press Quit" << std::endl;
-        SDL_Quit();
-        break;
-      } else if (event.type == SDL_KEYDOWN) {
-        switch (event.key.keysym.sym) {
-          case SDLK_p:
-          case SDLK_SPACE:
-            std::cout << "Press Space" << std::endl;
-            running = !running;
-            if (running) {
-              video_renderer->start();
-              audio_renderer->start();
-            } else {
-              video_renderer->stop();
-              audio_renderer->stop();
-            }
-            break;
-          case SDLK_LEFT:
-            std::cout << "Press Reverse" << std::endl;
-            flushTaskQueue();
-            for (auto& task : task_queue) {
-              task.get();
-            }
-            task_queue.clear();
-            video_renderer->flush();
-            audio_renderer->flush();
-            video_decoder->flush();
-            audio_decoder->flush();
-            SDL_PumpEvents();
-            demuxing_count = 0;
-            Timer::getInstance()->setAudioTime(
-                    Timer::getInstance()->getAudioTime() - (10 * 1000));
-            demuxer->seek(Timer::getInstance()->getAudioTime());
-            demuxing_completed = false;
-            break;
-          case SDLK_RIGHT:
-            std::cout << "Press Forward" << std::endl;
-            flushTaskQueue();
-            for (auto& task : task_queue) {
-              task.get();
-            }
-            task_queue.clear();
-            video_renderer->flush();
-            audio_renderer->flush();
-            video_decoder->flush();
-            audio_decoder->flush();
-            SDL_PumpEvents();
-            demuxing_count = 0;
-            Timer::getInstance()->setAudioTime(
-                    Timer::getInstance()->getAudioTime() + (10 * 1000));
-            demuxer->seek(Timer::getInstance()->getAudioTime());
-            demuxing_completed = false;
+        if (event.type == SDL_QUIT)
+        {
+            std::cout << "Press Quit" << std::endl;
+            flushMediaQueue();
+            SDL_Quit();
             break;
         }
-      } else if (event.type == SDL_DEMUXING) {
-        task_queue.push_back(std::async(std::launch::async, demuxing, demuxer));
-      } else if (event.type == SDL_VIDEO_DECODING) {
-        task_queue.push_back(
-                std::async(std::launch::async, videoDecoding, video_decoder));
-      } else if (event.type == SDL_AUDIO_DECODING) {
-        task_queue.push_back(
-                std::async(std::launch::async, audioDecoding, audio_decoder));
-      } else if (event.type == SDL_VIDEO_CONVERTING) {
-        task_queue.push_back(std::async(std::launch::async, videoConverting,
-                                        video_converter));
-      } else if (event.type == SDL_AUDIO_RESAMPLING) {
-        task_queue.push_back(std::async(std::launch::async, audioResampling,
-                                        audio_resampler));
-      } else if (event.type == SDL_VIDEO_RENDERING) {
-        task_queue.push_back(
-                std::async(std::launch::async, videoRendering, video_renderer));
-      } else if (event.type == SDL_AUDIO_RENDERING) {
-        task_queue.push_back(
-                std::async(std::launch::async, audioRendering, audio_renderer));
-      } else if (event.type == SDL_DEMUXING_COMPLETED) {
-        demuxing_completed = true;
-      }
+        else if (event.type == SDL_KEYDOWN)
+        {
+            switch (event.key.keysym.sym)
+            {
+            case SDLK_p:
+            case SDLK_SPACE:
+                std::cout << "Press Space" << std::endl;
+                if (is_running_)
+                {
+                    stop();
+                }
+                else
+                {
+                    start();
+                }
+                break;
 
-      std::vector<int> task_completed;
+            case SDLK_LEFT:
+                std::cout << "Press Reverse" << std::endl;
+                seekPlayback(-(10 * 1000)); // mililsecond
+                break;
 
-      for (int i = 0; i < static_cast<int>(task_queue.size()); i++) {
-        auto status = task_queue[i].wait_for(std::chrono::milliseconds(10));
-        if (status == std::future_status::ready) {
-          task_completed.push_back(i);
+            case SDLK_RIGHT:
+                std::cout << "Press Forward" << std::endl;
+                seekPlayback(10 * 1000); // mililsecond
+                break;
+            }
         }
-      }
-
-      for (int j = static_cast<int>(task_completed.size()) - 1; j >= 0; j--) {
-        task_queue.erase(task_queue.begin() + task_completed[j]);
-      }
-
-      if (!demuxing_completed && running) {
-        if (video_renderer_queue.size() < MAX_COUNT ||
-            audio_renderer_queue.size() < MAX_COUNT) {
-          if (demuxing_count < 20) {
-            SDL_Event demuxing_event;
-            demuxing_event.type = SDL_DEMUXING;
-            demuxing_count++;
-            SDL_PushEvent(&demuxing_event);
-          }
+        else if (event.type == SDL_EVENTS[DEMUXING])
+        {
+            task_queue_.emplace_back(std::async(std::launch::async, &VideoPlayer::demuxing, this));
         }
-      }
+        else if (event.type == SDL_EVENTS[VIDEO_DECODING])
+        {
+            task_queue_.emplace_back(std::async(std::launch::async, &VideoPlayer::decodingVideo, this));
+        }
+        else if (event.type == SDL_EVENTS[AUDIO_DECODING])
+        {
+            task_queue_.emplace_back(std::async(std::launch::async, &VideoPlayer::decodingAudio, this));
+        }
+        else if (event.type == SDL_EVENTS[VIDEO_CONVERTING])
+        {
+            task_queue_.emplace_back(std::async(std::launch::async, &VideoPlayer::convertingVideo, this));
+        }
+        else if (event.type == SDL_EVENTS[AUDIO_RESAMPLING])
+        {
+            task_queue_.emplace_back(std::async(std::launch::async, &VideoPlayer::resamplingAudio, this));
+        }
+        else if (event.type == SDL_EVENTS[VIDEO_RENDERING])
+        {
+            task_queue_.emplace_back(std::async(std::launch::async, &VideoPlayer::renderingVideo, this));
+        }
+        else if (event.type == SDL_EVENTS[AUDIO_RENDERING])
+        {
+            task_queue_.emplace_back(std::async(std::launch::async, &VideoPlayer::renderingAudio, this));
+        }
+        else if (event.type == SDL_EVENTS[DEMUXING_COMPLETED])
+        {
+            is_demuxing_completed_ = true;
+        }
+
+        task_queue_.erase(std::remove_if(task_queue_.begin(), task_queue_.end(),
+                                         [](auto& task) {
+                                             return task.wait_for(std::chrono::milliseconds(10)) ==
+                                                    std::future_status::ready;
+                                         }),
+                          task_queue_.end());
+
+        if (!is_demuxing_completed_ && is_running_)
+        {
+            bool is_demuxing_requried = video_renderer_queue_.size() < MAX_RENDERER_QUEUE_SIZE ||
+                                        audio_renderer_queue_.size() < MAX_RENDERER_QUEUE_SIZE;
+            if (is_demuxing_requried && demuxing_count_ < MAX_DEMUXING_COUNT)
+            {
+                SDL_Event demuxing_event;
+                demuxing_event.type = SDL_EVENTS[DEMUXING];
+                demuxing_count_++;
+                SDL_PushEvent(&demuxing_event);
+            }
+        }
     }
 
-    for (auto& task : task_queue) {
-      task.get();
+    for (auto& task : task_queue_)
+    {
+        task.get();
     }
-
-  } catch (const std::exception& e) {
-    std::cerr << e.what() << std::endl;
-    return -1;
-  }
-
-  return 0;
 }
 
-void demuxing(const std::shared_ptr<Demuxer>& demuxer) {
-  std::lock_guard<std::mutex> lock_guard(demuxer_lock);
-  std::shared_ptr<AVPacket> packet;
-  SDL_Event demuxing_event;
-  if (demuxer->getPacket(packet)) {
-    if (packet->stream_index == demuxer->video_stream_index()) {
-      video_decoder_queue.push(packet);
-      demuxing_event.type = SDL_VIDEO_DECODING;
-    } else if (packet->stream_index == demuxer->audio_stream_index()) {
-      audio_decoder_queue.push(packet);
-      demuxing_event.type = SDL_AUDIO_DECODING;
-    }
-  } else {
-    demuxing_event.type = SDL_DEMUXING_COMPLETED;
-  }
-
-  SDL_PushEvent(&demuxing_event);
-  demuxing_count--;
+void VideoPlayer::start()
+{
+    video_renderer_->Start();
+    audio_renderer_->Start();
+    is_running_ = true;
 }
 
-void videoDecoding(const std::shared_ptr<Decoder>& decoder) {
-  std::lock_guard<std::mutex> lock_guard(video_decoder_lock);
-  std::shared_ptr<AVPacket> packet = video_decoder_queue.front();
-  if (packet) {
-    std::queue<std::shared_ptr<AVFrame>> frame_queue;
-    decoder->getFrame(packet, frame_queue);
-    while (!frame_queue.empty()) {
-      std::shared_ptr<AVFrame> frame = frame_queue.front();
-      video_converter_queue.push(frame);
-      frame_queue.pop();
-      SDL_Event converting_event;
-      converting_event.type = SDL_VIDEO_CONVERTING;
-      SDL_PushEvent(&converting_event);
-    }
-  }
+void VideoPlayer::stop()
+{
+    video_renderer_->Stop();
+    audio_renderer_->Stop();
+    is_running_ = false;
 }
 
-void audioDecoding(const std::shared_ptr<Decoder>& decoder) {
-  std::lock_guard<std::mutex> lock_guard(audio_decoder_lock);
-  std::shared_ptr<AVPacket> packet = audio_decoder_queue.front();
-  if (packet) {
-    std::queue<std::shared_ptr<AVFrame>> frame_queue;
-    decoder->getFrame(packet, frame_queue);
-    while (!frame_queue.empty()) {
-      std::shared_ptr<AVFrame> frame = frame_queue.front();
-      audio_resampler_queue.push(frame);
-      frame_queue.pop();
-      SDL_Event resampling_event;
-      resampling_event.type = SDL_AUDIO_RESAMPLING;
-      SDL_PushEvent(&resampling_event);
+void VideoPlayer::seekPlayback(int seekDuration)
+{
+    flushMediaQueue();
+
+    for (auto& task : task_queue_)
+    {
+        task.get();
     }
-  }
+    task_queue_.clear();
+
+    // Thread safe because all tasks are completed
+    video_renderer_->Flush();
+    audio_renderer_->Flush();
+    video_decoder_->Flush();
+    audio_decoder_->Flush();
+
+    Timer::GetInstance()->SetAudioTime(Timer::GetInstance()->GetAudioTime() + seekDuration);
+    demuxer_->Seek(Timer::GetInstance()->GetAudioTime());
+
+    demuxing_count_ = 0;
+    is_demuxing_completed_ = false;
+
+    // Is it necessary?
+    SDL_PumpEvents();
 }
 
-void videoConverting(const std::shared_ptr<VideoConverter>& converter) {
-  std::lock_guard<std::mutex> lock_guard(video_converter_lock);
-  std::shared_ptr<AVFrame> frame = video_converter_queue.front();
-  if (frame) {
-    std::shared_ptr<AVFrame> converted_frame;
-    converter->convertFrame(frame, converted_frame);
-    video_renderer_queue.push(converted_frame);
+void VideoPlayer::demuxing()
+{
+    SDL_Event demuxing_event;
+    std::lock_guard<std::mutex> lock(demuxer_mutex_);
+
+    std::shared_ptr<AVPacket> packet;
+    if (demuxer_->GetPacket(packet))
+    {
+        if (packet->stream_index == demuxer_->video_stream_index())
+        {
+            video_decoder_queue_.push(packet);
+            demuxing_event.type = SDL_EVENTS[VIDEO_DECODING];
+        }
+        else if (packet->stream_index == demuxer_->audio_stream_index())
+        {
+            audio_decoder_queue_.push(packet);
+            demuxing_event.type = SDL_EVENTS[AUDIO_DECODING];
+        }
+    }
+    else
+    {
+        demuxing_event.type = SDL_EVENTS[DEMUXING_COMPLETED];
+    }
+
+    demuxing_count_--;
+    SDL_PushEvent(&demuxing_event);
+}
+
+void VideoPlayer::decodingVideo()
+{
+    SDL_Event converting_event;
+    std::lock_guard<std::mutex> lock(video_decoder_mutex_);
+
+    std::shared_ptr<AVPacket> packet = video_decoder_queue_.front();
+    if (packet)
+    {
+        std::queue<std::shared_ptr<AVFrame>> frame_queue;
+        video_decoder_->GetFrame(packet, frame_queue);
+        while (!frame_queue.empty())
+        {
+            std::shared_ptr<AVFrame> frame = frame_queue.front();
+            video_converter_queue_.push(frame);
+            frame_queue.pop();
+
+            converting_event.type = SDL_EVENTS[VIDEO_CONVERTING];
+            SDL_PushEvent(&converting_event);
+        }
+    }
+}
+
+void VideoPlayer::decodingAudio()
+{
+    SDL_Event resampling_event;
+    std::lock_guard<std::mutex> lock(audio_decoder_mutex_);
+
+    std::shared_ptr<AVPacket> packet = audio_decoder_queue_.front();
+    if (packet)
+    {
+        std::queue<std::shared_ptr<AVFrame>> frame_queue;
+        audio_decoder_->GetFrame(packet, frame_queue);
+        while (!frame_queue.empty())
+        {
+            std::shared_ptr<AVFrame> frame = frame_queue.front();
+            audio_resampler_queue_.push(frame);
+            frame_queue.pop();
+
+            resampling_event.type = SDL_EVENTS[AUDIO_RESAMPLING];
+            SDL_PushEvent(&resampling_event);
+        }
+    }
+}
+
+void VideoPlayer::convertingVideo()
+{
     SDL_Event rendering_event;
-    rendering_event.type = SDL_VIDEO_RENDERING;
-    SDL_PushEvent(&rendering_event);
-  }
+    std::lock_guard<std::mutex> lock(video_converter_mutex_);
+
+    std::shared_ptr<AVFrame> frame = video_converter_queue_.front();
+    if (frame)
+    {
+        std::shared_ptr<AVFrame> converted_frame;
+        video_converter_->ConvertFrame(frame, converted_frame);
+        video_renderer_queue_.push(converted_frame);
+
+        rendering_event.type = SDL_EVENTS[VIDEO_RENDERING];
+        SDL_PushEvent(&rendering_event);
+    }
 }
 
-void audioResampling(const std::shared_ptr<AudioResampler>& resampler) {
-  std::lock_guard<std::mutex> lock_guard(audio_resampler_lock);
-  std::shared_ptr<AVFrame> frame = audio_resampler_queue.front();
-  if (frame) {
-    std::shared_ptr<AudioBuffer> resampled_buffer;
-    resampler->resampleFrame(frame, resampled_buffer);
-    audio_renderer_queue.push(resampled_buffer);
+void VideoPlayer::resamplingAudio()
+{
     SDL_Event rendering_event;
-    rendering_event.type = SDL_AUDIO_RENDERING;
-    SDL_PushEvent(&rendering_event);
-  }
+    std::lock_guard<std::mutex> lock(audio_resampler_mutex_);
+
+    std::shared_ptr<AVFrame> frame = audio_resampler_queue_.front();
+    if (frame)
+    {
+        std::shared_ptr<AudioBuffer> resampled_buffer;
+        audio_resampler_->ResampleFrame(frame, resampled_buffer);
+        audio_renderer_queue_.push(resampled_buffer);
+
+        rendering_event.type = SDL_EVENTS[AUDIO_RENDERING];
+        SDL_PushEvent(&rendering_event);
+    }
 }
 
-void videoRendering(const std::shared_ptr<VideoRenderer>& renderer) {
-  std::lock_guard<std::mutex> lock_guard(video_renderer_lock);
-  std::shared_ptr<AVFrame> frame = video_renderer_queue.front();
-  if (frame) {
-    renderer->enqueueFrame(frame);
-  }
+void VideoPlayer::renderingVideo()
+{
+    std::lock_guard<std::mutex> lock(video_renderer_mutex_);
+
+    std::shared_ptr<AVFrame> frame = video_renderer_queue_.front();
+    if (frame)
+    {
+        video_renderer_->EnqueueFrame(frame);
+    }
 }
 
-void audioRendering(const std::shared_ptr<AudioRenderer>& renderer) {
-  std::lock_guard<std::mutex> lock_guard(audio_renderer_lock);
-  std::shared_ptr<AudioBuffer> buffer = audio_renderer_queue.front();
-  if (buffer) {
-    renderer->enqueueAudioBuffer(buffer);
-  }
+void VideoPlayer::renderingAudio()
+{
+    std::lock_guard<std::mutex> lock(audio_renderer_mutex_);
+
+    std::shared_ptr<AudioBuffer> buffer = audio_renderer_queue_.front();
+    if (buffer)
+    {
+        audio_renderer_->EnqueueAudioBuffer(buffer);
+    }
 }
 
-void flushTaskQueue() {
-  video_decoder_queue.flush();
-  audio_decoder_queue.flush();
-  video_converter_queue.flush();
-  audio_resampler_queue.flush();
-  video_renderer_queue.flush();
-  audio_renderer_queue.flush();
+void VideoPlayer::flushMediaQueue()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    video_decoder_queue_.flush();
+    audio_decoder_queue_.flush();
+    video_converter_queue_.flush();
+    audio_resampler_queue_.flush();
+    video_renderer_queue_.flush();
+    audio_renderer_queue_.flush();
 }

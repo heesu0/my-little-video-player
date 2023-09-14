@@ -1,19 +1,24 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.14)
-PROJECT(ffmpeg)
+# Minimum required version and project information
+cmake_minimum_required(VERSION 3.14)
+project(ffmpeg)
 
-FIND_PACKAGE(PkgConfig REQUIRED)
+# Ensure the availability of the PkgConfig module
+find_package(PkgConfig REQUIRED)
 
-PKG_CHECK_MODULES(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
-PKG_CHECK_MODULES(AVFORMAT REQUIRED IMPORTED_TARGET libavformat)
-PKG_CHECK_MODULES(AVFILTER REQUIRED IMPORTED_TARGET libavfilter)
-PKG_CHECK_MODULES(AVDEVICE REQUIRED IMPORTED_TARGET libavdevice)
-PKG_CHECK_MODULES(AVUTIL REQUIRED IMPORTED_TARGET libavutil)
-PKG_CHECK_MODULES(SWRESAMPLE REQUIRED IMPORTED_TARGET libswresample)
-PKG_CHECK_MODULES(SWSCALE REQUIRED IMPORTED_TARGET libswscale)
+# Search for ffmpeg libraries using PkgConfig
+pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec)
+pkg_check_modules(AVFORMAT REQUIRED IMPORTED_TARGET libavformat)
+pkg_check_modules(AVFILTER REQUIRED IMPORTED_TARGET libavfilter)
+pkg_check_modules(AVDEVICE REQUIRED IMPORTED_TARGET libavdevice)
+pkg_check_modules(AVUTIL REQUIRED IMPORTED_TARGET libavutil)
+pkg_check_modules(SWRESAMPLE REQUIRED IMPORTED_TARGET libswresample)
+pkg_check_modules(SWSCALE REQUIRED IMPORTED_TARGET libswscale)
 
-ADD_LIBRARY(ffmpeg INTERFACE IMPORTED GLOBAL)
+# Define an interface library to group the ffmpeg libraries
+add_library(ffmpeg INTERFACE IMPORTED GLOBAL)
 
-TARGET_LINK_LIBRARIES(ffmpeg INTERFACE
+# Link the discovered ffmpeg libraries to the interface library
+target_link_libraries(ffmpeg INTERFACE
   PkgConfig::AVCODEC
   PkgConfig::AVFORMAT
   PkgConfig::AVFILTER
@@ -21,4 +26,4 @@ TARGET_LINK_LIBRARIES(ffmpeg INTERFACE
   PkgConfig::AVUTIL
   PkgConfig::SWRESAMPLE
   PkgConfig::SWSCALE
-  )
+)

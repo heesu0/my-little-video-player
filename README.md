@@ -5,13 +5,11 @@
 ## Demo
 ![demo1](https://user-images.githubusercontent.com/34677157/162398532-4edf5356-e88d-4a67-bea9-38d421a437a7.gif)
 
-
-
 ## Usage
 
 ### Linux
 ```
-$ sudo apt-get install cmake pkg-config ffmpeg libsdl2-dev
+$ sudo apt-get install cmake pkg-config libsdl2-dev libavformat-dev libavfilter-dev libavdevice-dev ffmpeg
 ```
 
 ### MacOS

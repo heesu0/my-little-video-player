@@ -1,42 +1,52 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.14)
-PROJECT(my-little-video-player C CXX)
+# Minimum CMake version and project information
+cmake_minimum_required(VERSION 3.14)
+project(my-little-video-player LANGUAGES C CXX)
 
-SET(CMAKE_CXX_STANDARD 14)
-SET(CMAKE_BUILD_TYPE Debug)
-SET(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
-SET(THREADS_PREFER_PTHREAD_FLAG ON)
+# Set C++ standard and build type
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_BUILD_TYPE Debug)
 
-ADD_SUBDIRECTORY(lib/ffmpeg)
-ADD_SUBDIRECTORY(lib/sdl2)
-FIND_PACKAGE(Threads)
+# Compiler flags
+add_compile_options(-Wall -Wextra -Wpedantic)
 
-SET(sources
+# Pthread preference
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+# Add external libraries
+add_subdirectory(lib/ffmpeg)
+add_subdirectory(lib/sdl2)
+find_package(Threads REQUIRED)
+
+# Source files
+set(SOURCES
   src/log.cpp
-  src/timer.cpp
   src/demuxer.cpp
   src/decoder.cpp
   src/video_converter.cpp
   src/video_renderer.cpp
+  src/video_player.cpp
   src/audio_resampler.cpp
   src/audio_renderer.cpp
   src/audio_buffer.cpp
-  src/task_queue.h
-  )
+)
 
-#ADD_EXECUTABLE(log_example example/log_example.cpp ${sources})
-#ADD_EXECUTABLE(demuxer_example example/demuxer_example.cpp ${sources})
-#ADD_EXECUTABLE(decoder_example example/decoder_example.cpp ${sources})
-#ADD_EXECUTABLE(video_converter_example example/video_converter_example.cpp ${sources})
-#ADD_EXECUTABLE(video_renderer_example example/video_renderer_example.cpp ${sources})
-#ADD_EXECUTABLE(audio_resampler_example example/audio_resampler_example.cpp ${sources})
-#ADD_EXECUTABLE(audio_renderer_example example/audio_renderer_example.cpp ${sources})
-ADD_EXECUTABLE(video_player src/video_player.cpp ${sources})
+# List of examples and their source files
+set(EXAMPLES
+  log_example
+  demuxer_example
+  decoder_example
+  video_converter_example
+  video_renderer_example
+  audio_resampler_example
+  audio_renderer_example
+)
 
-#TARGET_LINK_LIBRARIES(log_example ffmpeg sdl2)
-#TARGET_LINK_LIBRARIES(demuxer_example ffmpeg sdl2)
-#TARGET_LINK_LIBRARIES(decoder_example ffmpeg sdl2)
-#TARGET_LINK_LIBRARIES(video_converter_example ffmpeg sdl2)
-#TARGET_LINK_LIBRARIES(video_renderer_example ffmpeg sdl2)
-#TARGET_LINK_LIBRARIES(audio_resampler_example ffmpeg sdl2)
-#TARGET_LINK_LIBRARIES(audio_renderer_example ffmpeg sdl2)
-TARGET_LINK_LIBRARIES(video_player ffmpeg sdl2 Threads::Threads)
+# Generate executables for each example
+foreach(EXAMPLE ${EXAMPLES})
+  add_executable(${EXAMPLE} example/${EXAMPLE}.cpp ${SOURCES})
+  target_link_libraries(${EXAMPLE} ffmpeg sdl2 Threads::Threads)
+endforeach()
+
+# Main video player executable
+add_executable(video_player src/main.cpp ${SOURCES})
+target_link_libraries(video_player ffmpeg sdl2 Threads::Threads)

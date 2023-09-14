@@ -1,4 +1,4 @@
-#include "../src/demuxer.h"
+#include "video_player.h"
 
 #include <iostream>
 #include <memory>
@@ -12,12 +12,9 @@ int main(int argc, char** argv)
             throw std::logic_error("Invalid arguments");
         }
 
-        auto demuxer = std::make_unique<Demuxer>(argv[1]);
-        demuxer->Init();
-        demuxer->PrintFileInfo();
-
-        std::shared_ptr<AVPacket> packet;
-        demuxer->GetPacket(packet);
+        auto player = std::make_unique<VideoPlayer>(argv[1]);
+        player->Init();
+        player->Run();
     }
     catch (const std::exception& e)
     {
